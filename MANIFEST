@@ -1,0 +1,12 @@
+bin/nagcheck.cgi
+Build.PL
+etc/nagcheck.conf
+etc/nagcheck_httpd.conf
+lib/NOMS/Nagios/Config.pm
+lib/NOMS/Nagios/Run.pm
+lib/NOMS/Nagcheck/Version.pm
+LICENSE
+MANIFEST			This list of files
+MANIFEST.in
+README.rst
+t/01_plugin_output.t

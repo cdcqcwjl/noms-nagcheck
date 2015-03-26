@@ -1,5 +1,6 @@
 #!/usr/bin/env perl
 # /* Copyright 2013 Proofpoint, Inc. All rights reserved.
+#    Copyright 2015 Evernote Corp. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -16,16 +17,14 @@
 
 
 use strict;
-no warnings;
-use lib '/opt/pptools';
-use ppenv;
+no warnings; # Because CGI
 
 use CGI;
 use URI::Escape;
 use PPOPS::JSON;
 use Monitoring::Livestatus;
-use Nagios::Config;
-use Nagios::Run;
+use NOMS::Nagios::Config;
+use NOMS::Nagios::Run;
 use Socket;
 use POSIX;
 use Sys::Syslog;
@@ -35,7 +34,7 @@ use vars qw($me $default_cfg_file $default $http_result
             $obj_desc $macro_desc @response_desc
             $livestatus $nag);
 
-$default_cfg_file = '/opt/pptools/etc/nagcheck.conf';
+$default_cfg_file = '/usr/local/etc/nagcheck.conf';
 
 $me = 'nagcheck';
 
@@ -114,7 +113,7 @@ if ($@) {
    wrn("Problem reading $default_cfg_file, using default config: " . $@);
 }
 
-$nag = Nagios::Config->new($cfg);
+$nag = NOMS::Nagios::Config->new($cfg);
 my $q = new CGI;
 
 eval {
@@ -260,7 +259,7 @@ eval {
    dbg("op    = " . ddump($op));
    dbg("macro = " . ddump($macro));
    
-   my $run = Nagios::Run->new({ %$op, %$macro });
+   my $run = NOMS::Nagios::Run->new({ %$op, %$macro });
    
    my $result = $run->run();
    
