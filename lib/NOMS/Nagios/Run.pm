@@ -99,22 +99,37 @@ sub run {
       }
    }
 
-   $result->{'long_plugin_output'} = $stdout;
+   $result->{'complete_plugin_output'} = $stdout;
    if ($stderr) {
       my $c = '';
-      if ($result->{'long_plugin_output'} and
-          $result->{'long_plugin_output'} !~ /\n$/m) {
+      if ($result->{'complete_plugin_output'} and
+          $result->{'complete_plugin_output'} !~ /\n$/m) {
          $c = "\n";
       }
-      $result->{'long_plugin_output'} .= $c . '(stderr) ' . $stderr;
+      $result->{'complete_plugin_output'} .= $c . '(stderr) ' . $stderr;
    }
 
-   my ($plugin_output) = split(/$/, $result->{'long_plugin_output'});
+   my ($plugin_output, $rest) = split(/\n/xms, $stdout, 2);
    $plugin_output = '' if !defined($plugin_output);
    my $perfdata;
 
    ($plugin_output, $perfdata) = split(/\s*\|\s*/, $plugin_output, 2);
    $result->{'plugin_output'} = $plugin_output;
+
+   if ($rest) {
+       my ($long_output, $extended_perfdata) = split(/\s*\|\s*/xms, $rest, 2);
+       if ($long_output and $long_output !~ /\n$/) {
+           $long_output .= "\n";
+       }
+
+       if ($extended_perfdata) {
+           $extended_perfdata =~ s/[\s\n]+/ /gxms;
+           $extended_perfdata =~ s/\s+$//;
+           $perfdata .= ' ' . $extended_perfdata;
+       }
+       $result->{'long_plugin_output'} = $long_output;
+   }
+
    $result->{'perfdata'} = $perfdata;
 
    for my $param (qw(host_name address service_description
