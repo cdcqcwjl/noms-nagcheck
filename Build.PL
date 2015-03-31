@@ -14,7 +14,7 @@ my $build = Module::Build->new
          $NOMS::Nagcheck::Version::VERSION;
      }->(),
      script_files => {
-         'bin/nagcheck.cgi'           => 'bin/nagcheck.cgi'
+         'bin/nagcheck'           => 'bin/nagcheck'
      },
      pm_files => {
          'lib/NOMS/Nagios/Config.pm'  => 'lib/NOMS/Nagios/Config.pm',
@@ -26,6 +26,11 @@ my $build = Module::Build->new
          'JSON'          => 0,
          'Monitoring::Livestatus' => 0,
          'IPC::Run'      => 0
+     },
+     meta_merge => {
+         resources => {
+             repository => 'http://github.com/evernote/noms-nagcheck'
+         }
      },
      test_requires => {
          'Test::Spec'      => 0,

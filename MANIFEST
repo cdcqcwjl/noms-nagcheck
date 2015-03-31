@@ -1,4 +1,4 @@
-bin/nagcheck.cgi
+bin/nagcheck
 Build.PL
 etc/nagcheck.conf
 etc/nagcheck_httpd.conf
@@ -10,3 +10,5 @@ MANIFEST			This list of files
 MANIFEST.in
 README.rst
 t/01_plugin_output.t
+META.yml
+META.json
