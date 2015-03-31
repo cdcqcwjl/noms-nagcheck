@@ -1,6 +1,6 @@
 #!/usr/bin/env perl
 # /* Copyright 2013 Proofpoint, Inc. All rights reserved.
-#    Copyright 2015 Evernote Corp. All rights reserved.
+#    Copyright 2014 Evernote Corporation. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -17,18 +17,35 @@
 
 
 use strict;
-no warnings; # Because CGI
+no warnings;
 
 use CGI;
 use URI::Escape;
-use PPOPS::JSON;
 use Monitoring::Livestatus;
-use NOMS::Nagios::Config;
-use NOMS::Nagios::Run;
 use Socket;
 use POSIX;
 use Sys::Syslog;
 use Data::Dumper;
+use JSON;
+
+use NOMS::Nagios::Config;
+use NOMS::Nagios::Run;
+
+# JSON version abstraction
+sub eat_json {
+    my ( $json_text, $opthash ) = @_;
+    return ( $JSON::VERSION > 2.0
+        ? from_json( $json_text, $opthash )
+        : JSON->new()->jsonToObj( $json_text, $opthash ) );
+}
+
+sub make_json {
+    my ( $obj, $opthash ) = @_;
+    return ( $JSON::VERSION > 2.0
+        ? to_json( $obj, $opthash )
+        : JSON->new()->objToJson( $obj, $opthash ) );
+}
+## end JSON functions
 
 use vars qw($me $default_cfg_file $default $http_result
             $obj_desc $macro_desc @response_desc
@@ -48,21 +65,21 @@ $http_result = {
 };
 
 $obj_desc = {
-   'command' => {
-      'key' => 'check_command',
-      'keycol' => 'name',
-      'columns' => [qw(name command_line)]
-   },
-          'host' => {
-             'key' => 'host_name',
-             'keycol' => 'host_name',
-             'columns' => [qw(name alias address check_command)]
-      },
-                 'service' => {
-                    'key' => 'service_description',
-                    'keycol' => 'service_description',
-                    'columns' => [qw(service_description check_command)]
-             }
+    'command' => {
+        'key' => 'check_command',
+        'keycol' => 'name',
+        'columns' => [qw(name command_line)]
+    },
+    'host' => {
+        'key' => 'host_name',
+        'keycol' => 'host_name',
+        'columns' => [qw(name alias address check_command custom_variables)]
+    },
+    'service' => {
+        'key' => 'service_description',
+        'keycol' => 'service_description',
+        'columns' => [qw(service_description check_command custom_variables)]
+    }
 };
 
 $macro_desc = {
@@ -87,7 +104,7 @@ $macro_desc = {
 openlog($me, 'pid,ndelay,nofatal', 'daemon');
 # Read Nagios Config
 
-# Whole config is replaced in config file exists
+# Whole config is replaced if config file exists
 my $cfg = {
    'nagios_cfg_file' => '/usr/local/nagios/etc/nagios.cfg',
    'allow_params' => [qw(timeout address report wait debug service_description command_line)],
@@ -121,7 +138,7 @@ eval {
    
    my $path = $q->path_info;
    $path =~ s|^/||;
-   my (@args) = map { s/\+/ /g; uri_unescape($_) } split('/', $path);
+   my (@args) = map { s/\+/ /g; uri_unescape($_) } split('/', $path, 3);
    dbg("extra path args = " . join(", ", @args));
    
    my ($op_name, $host_name, $arg) = @args;
@@ -164,6 +181,8 @@ eval {
          $op->{$param} = $default->{$param};
       }
    }
+   $ENV{'TEST_DEBUG'}=1 if $op->{'debug'};
+
    
    unless (isin($op->{'op'}, qw(host service command))) {
       result($q, 400, { "${me}_error" => "request type " . $op->{'op'} .
@@ -255,6 +274,19 @@ eval {
       $macro->{'$ARG' . $n . '$'} = $arg;
       $n++;
    }
+   if ($service and $service->{'custom_variables'}) {
+       # What I love about Perl is writing hash merges by hand... AGAIN and AGAIN!
+       my $custom_vars = $service->{'custom_variables'};
+       for my $var (keys %$custom_vars) {
+           $macro->{'$_SERVICE' . $var . '$'} = $custom_vars->{$var};
+       }
+   }
+   if ($host->{'custom_variables'}) {
+       my $custom_vars = $host->{'custom_variables'};
+       for my $var (keys %$custom_vars) {
+           $macro->{'$_HOST' . $var . '$'} = $custom_vars->{$var};
+       }
+   }
    
    dbg("op    = " . ddump($op));
    dbg("macro = " . ddump($macro));
@@ -337,6 +369,24 @@ sub lookup_host {
 
    my $pip = gethostbyname($hname);
    return inet_ntoa($pip) if defined($pip);
+}
+
+sub extract_custom_vars {
+    my ($prefix, $s) = @_;
+    my $v = { };
+
+
+    if ($s) {
+        # Is it a regex or isn't it? Perl is so fun!
+        for my $var_assignment (split('\|', $s)) {
+            my ($var, $value) = split(',', $var_assignment, 2);
+            $v->{"$prefix$var"} = uc($value);
+        }
+    }
+
+    dbg("extract_custom_vars('$prefix', '$s') => " . join(':', %$v));
+
+    return $v;
 }
 
 sub get_object {
