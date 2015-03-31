@@ -1,6 +1,0 @@
-Installation Instructions (basic)
-
-* Copy lib/*.pm to a Perl library location
-* Copy etc/* to appropriate location and modify (see Optconfig)
-* Install dependenies (e.g., IPC::Run, Monitoring::Livestatus)
-* Copy nagcheck.cgi to webserver location with appropriate CGI handler

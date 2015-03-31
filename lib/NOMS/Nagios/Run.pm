@@ -1,5 +1,6 @@
 #!perl
 # /* Copyright 2013 Proofpoint, Inc. All rights reserved.
+#    Copyright 2015 Evernote Corp. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -15,7 +16,7 @@
 # */
 
 
-package Nagios::Run;
+package NOMS::Nagios::Run;
 
 use strict;
 use vars qw($VERSION $context_fields);
@@ -53,10 +54,10 @@ sub get {
 }
 
 # Run the given command line, returning a data structure that is a partial
-# response as documented in
-# https://wiki.proofpoint.com/wiki/display/XOPS/Nagcheck+API
-# long_plugin_output
+# response
 # plugin_output (first line without perfdata)
+# long_plugin_output
+# complete_plugin_output (all output with stderr)
 # state (exitcode)
 # perfdata
 # context has: resources (global macros)
@@ -98,22 +99,38 @@ sub run {
       }
    }
 
-   $result->{'long_plugin_output'} = $stdout;
+   $result->{'complete_plugin_output'} = $stdout;
    if ($stderr) {
       my $c = '';
-      if ($result->{'long_plugin_output'} and
-          $result->{'long_plugin_output'} !~ /\n$/m) {
+      if ($result->{'complete_plugin_output'} and
+          $result->{'complete_plugin_output'} !~ /\n$/m) {
          $c = "\n";
       }
-      $result->{'long_plugin_output'} .= $c . '(stderr) ' . $stderr;
+      $result->{'complete_plugin_output'} .= $c . '(stderr) ' . $stderr;
    }
 
-   my ($plugin_output) = split(/$/, $result->{'long_plugin_output'});
-   $plugin_output = '' if !defined($plugin_output);
+   my ($plugin_output, $rest) = split(/\n/xms, $stdout, 2);
+   $plugin_output ||= '';
    my $perfdata;
 
    ($plugin_output, $perfdata) = split(/\s*\|\s*/, $plugin_output, 2);
+   $plugin_output ||= '';
    $result->{'plugin_output'} = $plugin_output;
+
+   if ($rest) {
+       my ($long_output, $extended_perfdata) = split(/\s*\|\s*/xms, $rest, 2);
+       if ($long_output and $long_output !~ /\n$/) {
+           $long_output .= "\n";
+       }
+
+       if ($extended_perfdata) {
+           $extended_perfdata =~ s/[\s\n]+/ /gxms;
+           $extended_perfdata =~ s/\s+$//;
+           $perfdata .= ' ' . $extended_perfdata;
+       }
+       $result->{'long_plugin_output'} = $long_output;
+   }
+
    $result->{'perfdata'} = $perfdata;
 
    for my $param (qw(host_name address service_description

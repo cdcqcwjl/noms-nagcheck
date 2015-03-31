@@ -1,5 +1,6 @@
 #!perl
 # /* Copyright 2013 Proofpoint, Inc. All rights reserved.
+#    Copyright 2015 Evernote Corp. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -15,7 +16,7 @@
 # */
 
 
-package Nagios::Config;
+package NOMS::Nagios::Config;
 
 use vars qw($VERSION);
 BEGIN { $VERSION = '__VERSION__'; }
