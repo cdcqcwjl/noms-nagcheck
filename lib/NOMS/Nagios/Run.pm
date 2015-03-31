@@ -54,10 +54,10 @@ sub get {
 }
 
 # Run the given command line, returning a data structure that is a partial
-# response as documented in
-# https://wiki.proofpoint.com/wiki/display/XOPS/Nagcheck+API
-# long_plugin_output
+# response
 # plugin_output (first line without perfdata)
+# long_plugin_output
+# complete_plugin_output (all output with stderr)
 # state (exitcode)
 # perfdata
 # context has: resources (global macros)
@@ -110,10 +110,11 @@ sub run {
    }
 
    my ($plugin_output, $rest) = split(/\n/xms, $stdout, 2);
-   $plugin_output = '' if !defined($plugin_output);
+   $plugin_output ||= '';
    my $perfdata;
 
    ($plugin_output, $perfdata) = split(/\s*\|\s*/, $plugin_output, 2);
+   $plugin_output ||= '';
    $result->{'plugin_output'} = $plugin_output;
 
    if ($rest) {
